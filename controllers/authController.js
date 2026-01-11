@@ -1,4 +1,4 @@
-const db = require('../config/db'); // Asegúrate de que esta ruta a tu DB sea correcta
+const db = require('../db'); // Asegúrate de que esta ruta a tu DB sea correcta
 const jwt = require('jsonwebtoken');
 
 // Usamos esta forma de exportar para que sea compatible con la desestructuración
