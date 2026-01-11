@@ -1,65 +1,59 @@
-const db = require('../db'); // Asegúrate de que esta ruta a tu DB sea correcta
+const db = require('../db'); 
 const jwt = require('jsonwebtoken');
 
-// Usamos esta forma de exportar para que sea compatible con la desestructuración
 const login = async (req, res) => {
     const { email, password, adminId, adminName, is_admin } = req.body;
 
     try {
-        let user;
+        let rows;
 
         if (is_admin) {
-            // En mysql2/promise, el resultado viene en un array [rows, fields]
-            const [rows] = await db.query(
+            // Consulta para Administrador
+            const [result] = await db.query(
                 'SELECT * FROM usuarios WHERE id = ? AND nombre = ? AND rol = "admin"', 
                 [adminId, adminName]
             );
-            user = rows;
+            rows = result;
         } else {
-            const [rows] = await db.query(
+            // Consulta para Estudiante
+            const [result] = await db.query(
                 'SELECT * FROM usuarios WHERE email = ? AND password = ?', 
                 [email, password]
             );
-            user = rows;
+            rows = result;
         }
 
-        if (!user || user.length === 0) {
-            return res.status(401).json({ error: "Credenciales inválidas" });
+        // Verificamos si encontramos al usuario
+        if (!rows || rows.length === 0) {
+            return res.status(401).json({ error: "Credenciales incorrectas o usuario no encontrado" });
         }
 
-        const usuarioEncontrado = user[0];
+        const usuario = rows[0];
 
-        // Generación del Token (Asegúrate de tener JWT_SECRET en tu .env de Render)
+        // Generar Token
         const token = jwt.sign(
-            { id: usuarioEncontrado.id, rol: usuarioEncontrado.rol },
+            { id: usuario.id, rol: usuario.rol },
             process.env.JWT_SECRET || 'secret_key',
             { expiresIn: '8h' }
         );
 
-        res.json({ 
+        // Respuesta exitosa
+        return res.json({ 
             token, 
             user: {
-                id: usuarioEncontrado.id,
-                nombre: usuarioEncontrado.nombre,
-                email: usuarioEncontrado.email,
-                rol: usuarioEncontrado.rol,
-                saldo: usuarioEncontrado.saldo
+                id: usuario.id,
+                nombre: usuario.nombre,
+                email: usuario.email,
+                rol: usuario.rol,
+                saldo: usuario.saldo
             } 
         });
 
     } catch (err) {
-        console.error("Error en login:", err);
-        res.status(500).json({ error: "Error interno en el servidor" });
+        console.error("Error detallado en el servidor:", err);
+        // Esto evita que el servidor se caiga y envía el error al frontend
+        return res.status(500).json({ error: "Error interno en el servidor", details: err.message });
     }
 };
 
-// Función register (vacía para que no de error al importar)
-const register = async (req, res) => {
-    // Tu lógica de registro aquí
-};
-
-// EXPORTACIÓN CORRECTA PARA EL ROUTER
-module.exports = {
-    login,
-    register
-};
+module.exports = { login };
