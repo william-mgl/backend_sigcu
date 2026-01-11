@@ -1,5 +1,6 @@
 const db = require('../db'); 
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt'); // Asegúrate de tenerlo instalado: npm install bcrypt
 
 const login = async (req, res) => {
     const { email, password, adminId, adminName, is_admin } = req.body;
@@ -8,26 +9,33 @@ const login = async (req, res) => {
         let result;
 
         if (is_admin) {
-            // PostgreSQL usa $1, $2 en lugar de ?
-            // Importante: Verifica que los nombres de las columnas sean id, nombre y rol
-            const query = 'SELECT * FROM usuarios WHERE id = $1 AND nombre = $2 AND rol = $3';
-            result = await db.query(query, [adminId, adminName, 'admin']);
+            // Para el Admin: buscamos por ID y Nombre
+            const query = 'SELECT * FROM usuarios WHERE id = $1 AND nombre = $2';
+            result = await db.query(query, [adminId, adminName]);
         } else {
-            // Consulta para Estudiante usando marcadores $1 y $2
-            const query = 'SELECT * FROM usuarios WHERE email = $1 AND password = $2';
-            result = await db.query(query, [email, password]);
+            // Para el Estudiante: buscamos SOLO por email primero
+            const query = 'SELECT * FROM usuarios WHERE email = $1';
+            result = await db.query(query, [email]);
         }
 
-        // En la librería 'pg', los datos están en result.rows
         const usuarios = result.rows;
 
+        // 1. Verificar si el usuario existe
         if (!usuarios || usuarios.length === 0) {
-            return res.status(401).json({ error: "Credenciales incorrectas" });
+            return res.status(401).json({ error: "Usuario no encontrado" });
         }
 
         const usuario = usuarios[0];
 
-        // Generar Token
+        // 2. VERIFICACIÓN DE CONTRASEÑA CON BCRYPT
+        // Comparamos la contraseña plana del login con el hash de la columna 'password_hash'
+        const passwordCorrecto = await bcrypt.compare(password, usuario.password_hash);
+
+        if (!passwordCorrecto) {
+            return res.status(401).json({ error: "Contraseña incorrecta" });
+        }
+
+        // 3. Generar Token si todo está bien
         const token = jwt.sign(
             { id: usuario.id, rol: usuario.rol },
             process.env.JWT_SECRET || 'secret_key',
@@ -46,16 +54,12 @@ const login = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("Error en login:", err);
+        console.error("Error en login:", err.message);
         return res.status(500).json({ 
             error: "Error interno en el servidor", 
-            message: err.message 
+            details: err.message 
         });
     }
 };
 
-const register = async (req, res) => {
-    // Asegúrate de usar también $1, $2... aquí si haces inserts
-};
-
-module.exports = { login, register };
+module.exports = { login };
