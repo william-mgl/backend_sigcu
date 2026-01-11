@@ -1,16 +1,14 @@
 const express = require('express');
 const router = express.Router();
-
-// Importamos usando desestructuración. 
-// Es vital que los nombres coincidan con el module.exports del controlador.
 const authController = require('../controllers/authController');
 
-// Verificación de seguridad para depuración (opcional)
-if (!authController.login || !authController.register) {
-    console.error("ERROR: Una de las funciones del controlador no está definida.");
+// Verificación manual para el log de Render
+if (!authController.login) {
+    console.error("ERROR CRÍTICO: authController.login no está definido. Revisa la exportación.");
 }
 
-router.post('/register', authController.register);
+// Línea 13 aproximadamente
 router.post('/login', authController.login);
+router.post('/register', authController.register);
 
 module.exports = router;
