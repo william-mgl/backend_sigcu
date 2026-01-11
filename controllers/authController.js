@@ -5,30 +5,27 @@ const login = async (req, res) => {
     const { email, password, adminId, adminName, is_admin } = req.body;
 
     try {
-        let rows;
+        let result;
 
         if (is_admin) {
-            // Consulta para Administrador
-            const [result] = await db.query(
-                'SELECT * FROM usuarios WHERE id = ? AND nombre = ? AND rol = "admin"', 
-                [adminId, adminName]
-            );
-            rows = result;
+            // PostgreSQL usa $1, $2 en lugar de ?
+            // Importante: Verifica que los nombres de las columnas sean id, nombre y rol
+            const query = 'SELECT * FROM usuarios WHERE id = $1 AND nombre = $2 AND rol = $3';
+            result = await db.query(query, [adminId, adminName, 'admin']);
         } else {
-            // Consulta para Estudiante
-            const [result] = await db.query(
-                'SELECT * FROM usuarios WHERE email = ? AND password = ?', 
-                [email, password]
-            );
-            rows = result;
+            // Consulta para Estudiante usando marcadores $1 y $2
+            const query = 'SELECT * FROM usuarios WHERE email = $1 AND password = $2';
+            result = await db.query(query, [email, password]);
         }
 
-        // Verificamos si encontramos al usuario
-        if (!rows || rows.length === 0) {
-            return res.status(401).json({ error: "Credenciales incorrectas o usuario no encontrado" });
+        // En la librería 'pg', los datos están en result.rows
+        const usuarios = result.rows;
+
+        if (!usuarios || usuarios.length === 0) {
+            return res.status(401).json({ error: "Credenciales incorrectas" });
         }
 
-        const usuario = rows[0];
+        const usuario = usuarios[0];
 
         // Generar Token
         const token = jwt.sign(
@@ -37,7 +34,6 @@ const login = async (req, res) => {
             { expiresIn: '8h' }
         );
 
-        // Respuesta exitosa
         return res.json({ 
             token, 
             user: {
@@ -50,10 +46,16 @@ const login = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("Error detallado en el servidor:", err);
-        // Esto evita que el servidor se caiga y envía el error al frontend
-        return res.status(500).json({ error: "Error interno en el servidor", details: err.message });
+        console.error("Error en login:", err);
+        return res.status(500).json({ 
+            error: "Error interno en el servidor", 
+            message: err.message 
+        });
     }
 };
 
-module.exports = { login };
+const register = async (req, res) => {
+    // Asegúrate de usar también $1, $2... aquí si haces inserts
+};
+
+module.exports = { login, register };
