@@ -28,7 +28,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/facultades', facultadRoutes);
 app.use('/api/comedores', comedoresRoutes);
 app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/reservas', reservasRoutes);
+// CAMBIO CLAVE: Sincronizado con el Frontend Comedor.jsx
+app.use('/api/menu-dia', menuRouter);
 app.use('/api/menu', menuRouter);
 app.use('/api/admin', adminRoutes);
 
